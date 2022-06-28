@@ -35,7 +35,7 @@ resource "aws_launch_configuration" "this" {
   associate_public_ip_address = true
   user_data                   = templatefile("${path.module}/resources/templates/user_data.tpl", 
       {
-        aws_region        = var.aws_region,
+        aws_region        = data.aws_region.current.name,
         eip_address       = aws_eip.this.public_ip,
         eip_allocation_id = aws_eip.this.id,
         s3_bucket         = aws_s3_bucket.this.name,
