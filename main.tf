@@ -29,9 +29,9 @@ resource "aws_launch_configuration" "this" {
   iam_instance_profile        = aws_iam_instance_profile.this.name
   image_id                    = var.ami_id
   instance_type               = var.instance_type
-  name_prefix                 = "${var.environment}-openvpn-"
+  name_prefix                 = "${var.environment}-openvpn"
   security_groups             = [aws_security_group.this.id]
-  key_name                    = "${var.environment}-openvpn"
+  key_name                    = "openvpn-key"
   associate_public_ip_address = true
   user_data                   = templatefile("${path.module}/resources/templates/user_data.tpl", 
       {
@@ -64,6 +64,16 @@ resource "aws_security_group_rule" "ingress_openvpn" {
   cidr_blocks       = ["0.0.0.0/0"]
 }
 
+resource "aws_security_group_rule" "ingress_ssh" {
+  security_group_id = aws_security_group.this.id
+  type              = "ingress"
+  description       = "SSH"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  self              = true
+}
+
 resource "aws_security_group_rule" "egress_all" {
   security_group_id = aws_security_group.this.id
   type              = "egress"
@@ -94,6 +104,10 @@ resource "aws_ssm_parameter" "private_key" {
 
 resource "aws_s3_bucket" "this" {
   bucket = "${var.environment}-openvpn"
+}
+
+resource "aws_s3_bucket_acl" "this" {
+  bucket = aws_s3_bucket.this.id
   acl    = "private"
 }
 
