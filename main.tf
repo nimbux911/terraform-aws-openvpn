@@ -1,6 +1,6 @@
 resource "aws_key_pair" "this" {
   key_name   = "openvpn-key"
-  public_key = base64decode(aws_ssm_parameter.openvpn_public_key.value)
+  public_key = base64decode(aws_ssm_parameter.public_key.value)
 }
 
 resource "aws_eip" "this" {
@@ -51,7 +51,7 @@ resource "aws_launch_configuration" "this" {
 resource "aws_security_group" "this" {
   name        = "${var.environment}-openvpn"
   description = "OpenVPN"
-  vpc_id      = data.terraform_remote_state.vpc_main.outputs.vpc_id
+  vpc_id      = var.vpc_id
 }
 
 resource "aws_security_group_rule" "ingress_openvpn" {
@@ -82,7 +82,7 @@ resource "tls_private_key" "this" {
 resource "aws_ssm_parameter" "public_key" {
   name  = "${var.environment}-openvpn-public-ssh-key"
   type  = "SecureString"
-  value = base64encode(tls_private_key.openvpn.public_key_openssh)
+  value = base64encode(tls_private_key.this.public_key_openssh)
 }
 
 resource "aws_ssm_parameter" "private_key" {
@@ -107,7 +107,7 @@ resource "aws_s3_bucket_object" "script" {
 resource "aws_s3_bucket_object" "docker_compose" {
   bucket = aws_s3_bucket.this.bucket
   key    = "docker-compose.yml"
-  source = templatefile("${path.module}/templates/docker-compose.yml.tpl", { docker_cidr = var.docker_cidr })
+  source = templatefile("${path.module}/resources/templates/docker-compose.yml.tpl", { docker_cidr = var.docker_cidr })
 }
 
 resource "aws_iam_instance_profile" "this" {
@@ -135,7 +135,7 @@ POLICY
 
 resource "aws_iam_role_policy" "this" {
   name   = "${var.environment}-openvpn"
-  role   = aws_iam_role.openvpn.id
+  role   = aws_iam_role.this.id
   policy = <<-EOF
 {
     "Version": "2012-10-17",
