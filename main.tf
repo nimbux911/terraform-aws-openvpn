@@ -107,7 +107,7 @@ resource "aws_s3_bucket_object" "script" {
 resource "aws_s3_bucket_object" "docker_compose" {
   bucket = aws_s3_bucket.this.bucket
   key    = "docker-compose.yml"
-  source = templatefile("${path.module}/resources/templates/docker-compose.yml.tpl", { docker_cidr = var.docker_cidr })
+  source = templatefile("${path.module}/resources/templates/docker-compose.yaml.tpl", { docker_cidr = var.docker_cidr })
 }
 
 resource "aws_iam_instance_profile" "this" {
