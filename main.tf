@@ -27,8 +27,8 @@ resource "aws_autoscaling_group" "this" {
 
 resource "aws_launch_configuration" "this" {
   iam_instance_profile        = aws_iam_instance_profile.this.name
-  image_id                    = var.openvpn_ami_id
-  instance_type               = var.openvpn_instance_type
+  image_id                    = var.ami_id
+  instance_type               = var.instance_type
   name_prefix                 = "${var.environment}-openvpn-"
   security_groups             = [aws_security_group.this.id]
   key_name                    = "${var.environment}-openvpn"
