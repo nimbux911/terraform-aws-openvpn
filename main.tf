@@ -40,7 +40,7 @@ resource "aws_launch_configuration" "this" {
         eip_allocation_id = aws_eip.this.id,
         s3_bucket         = aws_s3_bucket.this.name,
         docker_cidr       = var.docker_cidr
-        routes            = var.routes
+        routes            = [ for peered_network in var.peered_networks : "${element(split("/", peered_network), 0)} ${cidrnetmask(peered_network)}" ]
       }
     )
   lifecycle {
