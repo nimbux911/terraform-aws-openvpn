@@ -16,7 +16,7 @@ resource "aws_autoscaling_group" "this" {
   max_size             = 1
   min_size             = 1
   name                 = "${var.environment}-openvpn"
-  vpc_zone_identifier  = [var.subnet_id]
+  vpc_zone_identifier  = [var.subnet_ids[0]]
   health_check_type    = "EC2"
   tag {
     key                 = "Name"
