@@ -33,7 +33,7 @@ resource "aws_launch_configuration" "this" {
   security_groups             = [aws_security_group.this.id]
   key_name                    = "openvpn-key"
   associate_public_ip_address = true
-  user_data                   = templatefile("${path.module}/resources/templates/user_data.tpl", 
+  user_data                   = templatefile("${path.module}/resources/templates/user_data.tftpl", 
       {
         aws_region        = data.aws_region.current.name,
         eip_address       = aws_eip.this.public_ip,
@@ -111,17 +111,17 @@ resource "aws_s3_bucket_acl" "this" {
   acl    = "private"
 }
 
-resource "aws_s3_bucket_object" "script" {
+resource "aws_s3_object" "script" {
   for_each = fileset(path.module, "resource/scripts/*")
   bucket   = aws_s3_bucket.this.bucket
   key      = basename(each.value)
   source   = "${path.module}/${each.value}"
 }
 
-resource "aws_s3_bucket_object" "docker_compose" {
+resource "aws_s3_object" "docker_compose" {
   bucket = aws_s3_bucket.this.bucket
   key    = "docker-compose.yml"
-  source = templatefile("${path.module}/resources/templates/docker-compose.yaml.tpl", { docker_cidr = var.docker_cidr })
+  source = data.template_file.docker_compose.filename
 }
 
 resource "aws_iam_instance_profile" "this" {
