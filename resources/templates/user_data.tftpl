@@ -21,6 +21,7 @@ mkdir /openvpn
 s3fs ${s3_bucket} /openvpn -o allow_other -o iam_role="auto" -o url="https://s3.${aws_region}.amazonaws.com"
 
 chmod +x /openvpn/*.sh
+chown -R ubuntu:ubuntu /openvpn/
 
 cd /openvpn
 

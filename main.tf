@@ -112,7 +112,7 @@ resource "aws_s3_bucket_acl" "this" {
 }
 
 resource "aws_s3_object" "script" {
-  for_each = fileset(path.module, "resource/scripts/*")
+  for_each = fileset(path.module, "resources/scripts/*")
   bucket   = aws_s3_bucket.this.bucket
   key      = basename(each.value)
   source   = "${path.module}/${each.value}"
@@ -121,7 +121,7 @@ resource "aws_s3_object" "script" {
 resource "aws_s3_object" "docker_compose" {
   bucket = aws_s3_bucket.this.bucket
   key    = "docker-compose.yml"
-  source = data.template_file.docker_compose.filename
+  content = templatefile("${path.module}/resources/templates/docker-compose.yaml.tftpl", { docker_cidr = var.docker_cidr })
 }
 
 resource "aws_iam_instance_profile" "this" {
