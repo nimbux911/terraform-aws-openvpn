@@ -28,11 +28,11 @@ module "openvpn" {
 | Name | Description | Type | Default | Required |
 |------|-------------|------|---------|:--------:|
 | environment | Environment name of the resources. | `string` | `""` | yes |
-| project | Name of the project where the VPN will be used | `string` | `""` | yes |
-| vpc\_id | VPC ID where openvpn will be deployed. | `string` | `""` | yes |
-| ami\_id | AMI ID of the same region where the instance will be deployed | `string` | `""` | yes |
-| instance\_type | The type that will be used on the instance | `string` | `""` | yes |
-| subnets\_ids | Public subnets ids of the instance where the openvpn will be deployed | `list[string]` | `[]` | yes |
-| peered_networks | CIDRs which will be pushed by the openvpn | `string` | `""` | yes |
-| docker_cidr | CIDR which will be used by docker service inside the instance | `list[string]` | `[]` | yes |
-| compose_cidr | CIDR which will be used by docker-compose.yaml file inside the instance | `list[string]` | `[]` | yes |
+| project | Name of the project where the VPN will be used. | `string` | `""` | yes |
+| vpc\_id | VPC ID where OpenVPN will be deployed. | `string` | `""` | yes |
+| ami\_id | AMI ID to user for the OpenVPN EC2 instance. | `string` | `""` | yes |
+| instance\_type | OpenVPN EC2 instance type. | `string` | `""` | yes |
+| subnets\_ids | Public subnets ids from the designed VPC. | `list[string]` | `[]` | yes |
+| peered_networks | CIDRs blocks which OpenVPN will be able to route the traffic to/from. | `string` | `""` | yes |
+| docker_cidr | CIDR for Docker service. | `list[string]` | `[]` | yes |
+| compose_cidr | CIDR for `docker-compose.yaml`. | `list[string]` | `[]` | yes |
