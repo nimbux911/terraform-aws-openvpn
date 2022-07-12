@@ -35,3 +35,4 @@ module "openvpn" {
 | subnets\_ids | Public subnets ids of the instance where the openvpn will be deployed | `list[string]` | `[]` | yes |
 | peered_networks | CIDRs which will be pushed by the openvpn | `string` | `""` | yes |
 | docker_cidr | CIDR which will be used by docker service inside the instance | `list[string]` | `[]` | yes |
+| compose_cidr | CIDR which will be used by docker-compose.yaml file inside the instance | `list[string]` | `[]` | yes |
