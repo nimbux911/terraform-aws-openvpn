@@ -21,7 +21,6 @@ mkdir /openvpn
 s3fs ${s3_bucket} /openvpn -o allow_other -o iam_role="auto" -o url="https://s3.${aws_region}.amazonaws.com"
 
 chmod +x /openvpn/*.sh
-chown -R ubuntu:ubuntu /openvpn
 
 cd /openvpn
 
@@ -33,5 +32,7 @@ if [ ! -f /openvpn/conf/openvpn.conf ]; then
                   -e 'topology subnet' -u udp://${eip_address}
     echo "openvpn" | docker-compose run --rm openvpn ovpn_initpki nopass
 fi
+
+chown -R ubuntu:ubuntu /openvpn
 
 docker-compose up -d openvpn
