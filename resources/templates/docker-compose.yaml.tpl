@@ -16,4 +16,4 @@ networks:
     ipam:
       driver: default
       config:
-        - subnet: ${docker_cidr}
+        - subnet: ${compose_cidr}
