@@ -32,7 +32,7 @@ module "openvpn" {
 | vpc\_id | VPC ID where OpenVPN will be deployed. | `string` | `""` | yes |
 | ami\_id | AMI ID to user for the OpenVPN EC2 instance. | `string` | `""` | yes |
 | instance\_type | OpenVPN EC2 instance type. | `string` | `""` | yes |
-| subnets\_ids | Public subnets ids from the designed VPC. | `list[string]` | `[]` | yes |
+| subnet\_ids | Public subnet ids from the designed VPC. | `list[string]` | `[]` | yes |
 | peered_networks | CIDRs blocks which OpenVPN will be able to route the traffic to/from. | `string` | `""` | yes |
 | docker_cidr | CIDR for Docker service. | `list[string]` | `[]` | yes |
 | compose_cidr | CIDR for `docker-compose.yaml`. | `list[string]` | `[]` | yes |
