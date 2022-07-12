@@ -1,5 +1,5 @@
 resource "aws_key_pair" "this" {
-  key_name   = "openvpn-key"
+  key_name   = "${var.environment}-openvpn"
   public_key = base64decode(aws_ssm_parameter.public_key.value)
 }
 
