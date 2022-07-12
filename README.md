@@ -1,6 +1,6 @@
 # AWS OpenVPN Terraform module
 
-Terraform module which creates an openVPN on AWS.
+Terraform module which creates an OpenVPN EC2 instance in AWS.
 
 ## Usage
 
