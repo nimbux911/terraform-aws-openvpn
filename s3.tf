@@ -17,5 +17,5 @@ resource "aws_s3_object" "script" {
 resource "aws_s3_object" "docker_compose" {
   bucket = aws_s3_bucket.this.bucket
   key    = "docker-compose.yml"
-  source = templatefile("resources/templates/docker-compose.yaml.tftpl", { docker_cidr = var.compose_cidr })
+  source = templatefile("resources/templates/docker-compose.yaml.tpl", { docker_cidr = var.compose_cidr })
 }
