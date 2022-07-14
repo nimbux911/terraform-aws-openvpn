@@ -170,7 +170,7 @@ resource "aws_iam_role_policy" "this" {
               "arn:aws:s3:::${aws_s3_bucket.this.bucket}/*"
             ]
         }
-    
+    ]
 }
   EOF
 }
