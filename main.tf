@@ -158,8 +158,8 @@ resource "aws_iam_role_policy" "this" {
             "Effect": "Allow",
             "Action": [
                 "ec2:AssociateAddress",
-                "ec2:DisassociateAddress",
-            ],
+                "ec2:DisassociateAddress"
+            ]
             "Resource": "*"
         },
         {
