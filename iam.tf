@@ -31,17 +31,8 @@ resource "aws_iam_role_policy" "this" {
         {
             "Effect": "Allow",
             "Action": [
-                "ssm:DescribeParameters",
-                "ssm:GetParameterHistory",
-                "ssm:DescribeDocumentParameters",
-                "ssm:GetParametersByPath",
-                "ssm:GetParameters",
-                "ssm:GetParameter",
-                "secretsmanager:ListSecrets",
-                "secretsmanager:GetSecretValue",
                 "ec2:AssociateAddress",
                 "ec2:DisassociateAddress",
-                "secretsmanager:DescribeSecret" 
             ],
             "Resource": "*"
         },
