@@ -1,3 +1,8 @@
+resource "aws_key_pair" "this" {
+  key_name   = "${var.environment}-openvpn"
+  public_key = base64decode(aws_ssm_parameter.public_key.value)
+}
+
 resource "aws_eip" "this" {
   vpc      = true
   tags = {
@@ -42,8 +47,133 @@ resource "aws_launch_configuration" "this" {
     create_before_destroy = true
   }
 }
+  
+resource "aws_security_group" "this" {
+  name        = "${var.environment}-openvpn"
+  description = "OpenVPN"
+  vpc_id      = var.vpc_id
+}
 
+resource "aws_security_group_rule" "ingress_openvpn" {
+  security_group_id = aws_security_group.this.id
+  type              = "ingress"
+  description       = "OpenVPN"
+  from_port         = 1194
+  to_port           = 1194
+  protocol          = "udp"
+  cidr_blocks       = ["0.0.0.0/0"]
+}
 
+resource "aws_security_group_rule" "egress_all" {
+  security_group_id = aws_security_group.this.id
+  type              = "egress"
+  description       = "Allow all egress traffic"
+  from_port         = 0
+  to_port           = 0
+  protocol          = "-1"
+  cidr_blocks       = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "ingress_ssh" {
+  security_group_id = aws_security_group.this.id
+  type              = "ingress"
+  description       = "SSH"
+  from_port         = 22
+  to_port           = 22
+  protocol          = "tcp"
+  self              = true
+}  
+
+resource "tls_private_key" "this" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_ssm_parameter" "public_key" {
+  name  = "${var.environment}-openvpn-public-ssh-key"
+  type  = "SecureString"
+  value = base64encode(tls_private_key.this.public_key_openssh)
+}
+
+resource "aws_ssm_parameter" "private_key" {
+  name  = "${var.environment}-openvpn-private-ssh-key"
+  type  = "SecureString"
+  tier  = "Advanced"
+  value = base64encode(tls_private_key.this.private_key_pem)
+}  
+
+resource "aws_s3_bucket" "this" {
+  bucket = "${var.environment}-${var.project}-openvpn"
+}
+
+resource "aws_s3_bucket_acl" "this" {
+  bucket = aws_s3_bucket.this.id
+  acl    = "private"
+}
+
+resource "aws_s3_object" "script" {
+  for_each = fileset(path.module, "resources/scripts/*")
+  bucket   = aws_s3_bucket.this.bucket
+  key      = basename(each.value)
+  source   = "${path.module}/${each.value}"
+}
+
+resource "aws_s3_object" "docker_compose" {
+  bucket = aws_s3_bucket.this.bucket
+  key    = "docker-compose.yml"
+  content = templatefile("${path.module}/resources/templates/docker-compose.yaml.tpl", { compose_cidr = var.compose_cidr })
+}
+  
+resource "aws_iam_instance_profile" "this" {
+  name = "${var.environment}-openvpn"
+  role = aws_iam_role.this.name
+}
+
+resource "aws_iam_role" "this" {
+  name = "${var.environment}-openvpn"
+    assume_role_policy = <<POLICY
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ec2.amazonaws.com"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+POLICY
+}
+
+resource "aws_iam_role_policy" "this" {
+  name   = "${var.environment}-openvpn"
+  role   = aws_iam_role.this.id
+  policy = <<-EOF
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "ec2:AssociateAddress",
+                "ec2:DisassociateAddress",
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": [
+              "arn:aws:s3:::${aws_s3_bucket.this.bucket}",
+              "arn:aws:s3:::${aws_s3_bucket.this.bucket}/*"
+            ]
+        }
+    ]
+}
+  EOF
+}
 
 
 
