@@ -10,7 +10,7 @@ Terraform module which creates an OpenVPN EC2 instance in AWS.
 
 ```hcl
 module "openvpn" {
-  source            = "github.com/nimbux911/terraform-aws-openvpn.git?ref=vpNegro"
+  source            = "github.com/nimbux911/terraform-aws-openvpn.git?ref=main"
   environment       = "ops"
   project           = "project-name"
   vpc_id            = "vpc-04fdf81f6998d2d48"
