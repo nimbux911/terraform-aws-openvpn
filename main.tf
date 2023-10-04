@@ -1,88 +1,142 @@
+resource "aws_autoscaling_group" "this" {
+  desired_capacity     = 1
+  max_size             = 1
+  min_size             = 1
+  name                 = var.stack_name
+  vpc_zone_identifier  = [var.subnet_id]
+  health_check_type    = "EC2"
+
+  launch_template {
+    id      = aws_launch_template.this.id
+    version = "$Latest"
+  }
+
+  dynamic "tag" {
+    for_each = local.tags
+    content {
+      key                 = tag.key
+      propagate_at_launch = true
+      value               = tag.value
+    }
+  }
+
+}
+
+resource "aws_launch_template" "this" {
+  name                                 = var.stack_name
+  image_id                             = var.ubuntu_ami_id == "" ? data.aws_ami.ubuntu[0].id : var.ubuntu_ami_id
+  key_name                             = aws_key_pair.this.key_name
+  ebs_optimized                        = true
+  instance_type                        = var.instance_type
+  instance_initiated_shutdown_behavior = "terminate"
+  update_default_version               = true
+
+  block_device_mappings {
+    device_name = var.ubuntu_ami_id != "" ? "/dev/sda1" : data.aws_ami.ubuntu[0].root_device_name
+    ebs {
+      volume_size           = 8
+      volume_type           = "gp2"
+      delete_on_termination = true
+    }
+  }
+
+  iam_instance_profile {
+    name = aws_iam_instance_profile.this.name
+  }
+
+  monitoring {
+    enabled = true
+  }
+
+  network_interfaces {
+    associate_public_ip_address = true
+    security_groups             = [aws_security_group.this.id]
+  }
+
+  user_data = base64encode(templatefile("${path.module}/resources/templates/user_data.tpl", 
+      {
+        aws_region          = data.aws_region.current.name,
+        eip_address         = aws_eip.this.public_ip,
+        eip_allocation_id   = aws_eip.this.id,
+        volume_path         = var.volume_path,
+        volume_device_name  = "/dev/sdf"
+        volume_id           = aws_ebs_volume.this.id
+        docker_cidr         = var.docker_cidr
+        docker_compose      = local.docker_compose
+        create_client       = local.create_client
+        revoke_client       = local.revoke_client
+        routes              = [ for peered_network in var.peered_networks : "${element(split("/", peered_network), 0)} ${cidrnetmask(peered_network)}" ]
+      }
+  ))
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = local.tags
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags = local.tags
+  }
+
+  tag_specifications {
+    resource_type = "network-interface"
+    tags = local.tags
+  }
+
+}
+
+resource "aws_ebs_volume" "this" {
+  availability_zone = data.aws_subnet.selected.availability_zone
+  encrypted         = true
+  type              = "gp2"
+  size              = 30
+  tags              = local.tags
+}
+
 resource "aws_key_pair" "this" {
-  key_name   = "${var.environment}-openvpn"
-  public_key = base64decode(aws_ssm_parameter.public_key.value)
+  key_name    = var.stack_name
+  public_key  = base64decode(aws_ssm_parameter.public_key.value)
+  tags        = local.tags
 }
 
 resource "aws_eip" "this" {
-  vpc      = true
-  tags = {
-    Name = "${var.environment}-openvpn"
-  }
+  vpc  = true
+  tags = local.tags
 }
 
-resource "aws_autoscaling_group" "this" {
-  desired_capacity     = 1
-  launch_configuration = aws_launch_configuration.this.id
-  max_size             = 1
-  min_size             = 1
-  name                 = "${var.environment}-openvpn"
-  vpc_zone_identifier  = [var.subnet_ids[0]]
-  health_check_type    = "EC2"
-  tag {
-    key                 = "Name"
-    value               = "${var.environment}-openvpn"
-    propagate_at_launch = true
-  }
-}
-
-resource "aws_launch_configuration" "this" {
-  iam_instance_profile        = aws_iam_instance_profile.this.name
-  image_id                    = var.ami_id
-  instance_type               = var.instance_type
-  name_prefix                 = "${var.environment}-openvpn"
-  security_groups             = [aws_security_group.this.id]
-  key_name                    = "${var.environment}-openvpn"
-  associate_public_ip_address = true
-  user_data                   = templatefile("${path.module}/resources/templates/user_data.tpl", 
-      {
-        aws_region        = data.aws_region.current.name,
-        eip_address       = aws_eip.this.public_ip,
-        eip_allocation_id = aws_eip.this.id,
-        s3_bucket         = aws_s3_bucket.this.bucket,
-        docker_cidr       = var.docker_cidr
-        routes            = [ for peered_network in var.peered_networks : "${element(split("/", peered_network), 0)} ${cidrnetmask(peered_network)}" ]
-      }
-    )
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-  
 resource "aws_security_group" "this" {
-  name        = "${var.environment}-openvpn"
+  name        = var.stack_name
   description = "OpenVPN"
   vpc_id      = var.vpc_id
-}
+  tags        = local.tags
 
-resource "aws_security_group_rule" "ingress_openvpn" {
-  security_group_id = aws_security_group.this.id
-  type              = "ingress"
-  description       = "OpenVPN"
-  from_port         = 1194
-  to_port           = 1194
-  protocol          = "udp"
-  cidr_blocks       = ["0.0.0.0/0"]
-}
+  ingress {
+    description      = "OpenVPN"
+    from_port        = 1194
+    to_port          = 1194
+    protocol         = "udp"
+    cidr_blocks      = ["0.0.0.0/0"]
+  }
 
-resource "aws_security_group_rule" "egress_all" {
-  security_group_id = aws_security_group.this.id
-  type              = "egress"
-  description       = "Allow all egress traffic"
-  from_port         = 0
-  to_port           = 0
-  protocol          = "-1"
-  cidr_blocks       = ["0.0.0.0/0"]
-}
+  ingress {
+    description      = "SSH"
+    from_port        = 22
+    to_port          = 22
+    protocol         = "tcp"
+    self             = true
+    cidr_blocks      = var.ssh_ingress_cidrs
+  }
 
-resource "aws_security_group_rule" "ingress_ssh" {
-  security_group_id = aws_security_group.this.id
-  type              = "ingress"
-  description       = "SSH"
-  from_port         = 22
-  to_port           = 22
-  protocol          = "tcp"
-  self              = true
-}  
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+}
 
 resource "tls_private_key" "this" {
   algorithm = "RSA"
@@ -90,48 +144,29 @@ resource "tls_private_key" "this" {
 }
 
 resource "aws_ssm_parameter" "public_key" {
-  name  = "${var.environment}-openvpn-public-ssh-key"
+  name  = "${local.ssm_parameters_path}public-ssh-key"
   type  = "SecureString"
   value = base64encode(tls_private_key.this.public_key_openssh)
+  tags  = local.tags
 }
 
 resource "aws_ssm_parameter" "private_key" {
-  name  = "${var.environment}-openvpn-private-ssh-key"
+  name  = "${local.ssm_parameters_path}private-ssh-key"
   type  = "SecureString"
   tier  = "Advanced"
   value = base64encode(tls_private_key.this.private_key_pem)
+  tags  = local.tags
 }  
 
-resource "aws_s3_bucket" "this" {
-  bucket = "${var.environment}-${var.project}-openvpn"
-}
-
-resource "aws_s3_bucket_acl" "this" {
-  bucket = aws_s3_bucket.this.id
-  acl    = "private"
-}
-
-resource "aws_s3_object" "script" {
-  for_each = fileset(path.module, "resources/scripts/*")
-  bucket   = aws_s3_bucket.this.bucket
-  key      = basename(each.value)
-  source   = "${path.module}/${each.value}"
-}
-
-resource "aws_s3_object" "docker_compose" {
-  bucket = aws_s3_bucket.this.bucket
-  key    = "docker-compose.yml"
-  content = templatefile("${path.module}/resources/templates/docker-compose.yaml.tpl", { compose_cidr = var.compose_cidr })
-}
-  
 resource "aws_iam_instance_profile" "this" {
-  name = "${var.environment}-openvpn"
+  name = var.stack_name
   role = aws_iam_role.this.name
 }
 
 resource "aws_iam_role" "this" {
-  name = "${var.environment}-openvpn"
-    assume_role_policy = <<POLICY
+  name               = var.stack_name
+  tags               = local.tags
+  assume_role_policy = <<POLICY
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -148,7 +183,7 @@ POLICY
 }
 
 resource "aws_iam_role_policy" "this" {
-  name   = "${var.environment}-openvpn"
+  name   = var.stack_name
   role   = aws_iam_role.this.id
   policy = <<-EOF
 {
@@ -158,17 +193,10 @@ resource "aws_iam_role_policy" "this" {
             "Effect": "Allow",
             "Action": [
                 "ec2:AssociateAddress",
-                "ec2:DisassociateAddress"
+                "ec2:DisassociateAddress",
+                "ec2:AttachVolume"
             ],
             "Resource": "*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": "s3:*",
-            "Resource": [
-              "arn:aws:s3:::${aws_s3_bucket.this.bucket}",
-              "arn:aws:s3:::${aws_s3_bucket.this.bucket}/*"
-            ]
         }
     ]
 }
