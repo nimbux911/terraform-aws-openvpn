@@ -28,7 +28,7 @@ module "openvpn" {
 |------|-------------|------|---------|:--------:|
 | compose\_cidr | CIDR for default compose network. | `string` | `"192.168.127.1/24"` | no |
 | docker\_cidr | CIDR for default docker network. | `string` | `"192.168.125.1/24"` | no |
-| instance\_type | OpenVPN EC2 instance type. | `string` | `"t3.small"` | no |
+| instance\_type | OpenVPN EC2 instance type. | `string` | `"t3a.micro"` | no |
 | peered\_networks | CIDRs blocks which OpenVPN will be able to route the traffic to/from. | `list(string)` | `[]` | no |
 | ssh\_ingress\_cidrs | CIDR blocks to allow ssh access to the OpenVPN instance. | `list(string)` | `[]` | no |
 | ssm\_parameters\_path | Path prefix for ssm parameters. | `string` | `""` | no |

@@ -8,7 +8,7 @@ variable "docker_cidr" {
 }
 variable "instance_type" {
     type    = string
-    default = "t3.small"
+    default = "t3a.micro"
 }
 variable "peered_networks" {
     type    = list(string)
