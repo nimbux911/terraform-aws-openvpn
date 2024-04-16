@@ -9,7 +9,6 @@ services:
      - "1194:1194/udp"
     restart: always
     environment:
-     - DEBUG=1
      - EASYRSA_BATCH=1
     volumes:
      - ./conf:/etc/openvpn
