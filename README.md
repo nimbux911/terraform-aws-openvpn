@@ -36,6 +36,7 @@ module "openvpn" {
 | peered_networks | CIDRs blocks which OpenVPN will be able to route the traffic to/from. | `string` | `""` | yes |
 | docker_cidr | CIDR for Docker service. | `list[string]` | `[]` | yes |
 | compose_cidr | CIDR for `docker-compose.yaml`. | `list[string]` | `[]` | yes |
+| tags | Common tags. | `map[string]` | `[]` | yes |
 
 ## Outputs
 
