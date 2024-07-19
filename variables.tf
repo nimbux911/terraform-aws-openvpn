@@ -7,3 +7,4 @@ variable "instance_type" {}
 variable "peered_networks" {}
 variable "docker_cidr" { description = "IP docker"}
 variable "compose_cidr" { description = "IP docker-compose"}
+variable "tags" {}

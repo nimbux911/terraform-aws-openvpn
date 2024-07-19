@@ -4,10 +4,8 @@ resource "aws_key_pair" "this" {
 }
 
 resource "aws_eip" "this" {
-  vpc      = true
-  tags = {
-    Name = "${var.environment}-openvpn"
-  }
+  vpc  = true
+  tags = merge(var.tags, { Name = "${var.environment}-openvpn" })
 }
 
 resource "aws_autoscaling_group" "this" {
@@ -52,6 +50,7 @@ resource "aws_security_group" "this" {
   name        = "${var.environment}-openvpn"
   description = "OpenVPN"
   vpc_id      = var.vpc_id
+  tags        = merge(var.tags, { Name = "${var.environment}-openvpn" })
 }
 
 resource "aws_security_group_rule" "ingress_openvpn" {
@@ -93,6 +92,7 @@ resource "aws_ssm_parameter" "public_key" {
   name  = "${var.environment}-openvpn-public-ssh-key"
   type  = "SecureString"
   value = base64encode(tls_private_key.this.public_key_openssh)
+  tags  = var.tags
 }
 
 resource "aws_ssm_parameter" "private_key" {
@@ -100,10 +100,12 @@ resource "aws_ssm_parameter" "private_key" {
   type  = "SecureString"
   tier  = "Advanced"
   value = base64encode(tls_private_key.this.private_key_pem)
+  tags  = var.tags
 }  
 
 resource "aws_s3_bucket" "this" {
   bucket = "${var.environment}-${var.project}-openvpn"
+  tags   = var.tags
 }
 
 resource "aws_s3_bucket_acl" "this" {
@@ -145,6 +147,8 @@ resource "aws_iam_role" "this" {
   ]
 }
 POLICY
+
+  tags = var.tags
 }
 
 resource "aws_iam_role_policy" "this" {
