@@ -3,6 +3,8 @@ services:
   openvpn:
     cap_add:
      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
     image: public.ecr.aws/n5x5g3h7/nimbux911/dockovpn:2.6.8-config.0.1.0
     container_name: openvpn
     ports:
