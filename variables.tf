@@ -1,10 +1,10 @@
 variable "compose_cidr" {
     type    = string
-    default = "192.168.127.1/24"
+    default = "192.168.127.0/24"
 }
 variable "docker_cidr" { 
     type    = string
-    default = "192.168.125.1/24"
+    default = "192.168.125.0/24"
 }
 variable "instance_type" {
     type    = string
