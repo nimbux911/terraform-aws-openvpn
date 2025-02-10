@@ -1,3 +1,8 @@
+## [2.1.2] - 2025-01-15
+
+- Docker and compose CIDRs were fixed.
+- Removed the 'version' attribute from docker-compose.yml as it is deprecated.
+
 ## [2.1.1] - 2025-01-03
 
 - Add /dev/net/tun device to Docker Compose config for OpenVPN compatibility. Recent changes in Docker require explicitly mounting the /dev/net/tun device to ensure proper operation of OpenVPN. Updated docker-compose.yml to include this configuration.
