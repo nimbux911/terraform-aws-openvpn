@@ -4,6 +4,7 @@ Terraform module which creates an OpenVPN EC2 instance in AWS.
 
 ![OpenVPN Version](https://img.shields.io/badge/OpenVPN-2.6.12-blue?style=for-the-badge)
 ![Alpine Version](https://img.shields.io/badge/Alpine-3.21.3-green?style=for-the-badge)
+![Terraform Version](https://img.shields.io/badge/Terraform-%3E%3D%200.14.8-purple?style=for-the-badge)
 
 ## Usage
 
