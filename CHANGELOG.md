@@ -1,3 +1,7 @@
+## [2.2.0] - 2025-03-11
+
+- The open vpn version was updated to 2.6.12 and the Alpine version of the container was updated to 3.21.3.
+
 ## [2.1.2] - 2025-01-15
 
 - Docker and compose CIDRs were fixed.
