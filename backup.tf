@@ -28,9 +28,16 @@ resource "aws_backup_selection" "this" {
   iam_role_arn = aws_iam_role.backup.arn
   plan_id      = aws_backup_plan.this.id
 
-  resources    = data.aws_instances.openvpn_instance.arn
+  resources = ["*"]  
+
+  condition {
+    string_equals {
+      key   = "aws:ResourceTag/Name"
+      value = var.stack_name
+  }
 
   depends_on   = [aws_backup_plan.this, aws_iam_role.backup]
+  }
 }
 
 resource "aws_iam_role" "backup" {
