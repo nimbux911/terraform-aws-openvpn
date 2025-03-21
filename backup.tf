@@ -35,9 +35,9 @@ resource "aws_backup_selection" "this" {
       key   = "aws:ResourceTag/Name"
       value = var.stack_name
   }
+  }
 
   depends_on   = [aws_backup_plan.this, aws_iam_role.backup]
-  }
 }
 
 resource "aws_iam_role" "backup" {
