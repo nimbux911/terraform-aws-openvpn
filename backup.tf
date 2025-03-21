@@ -16,14 +16,21 @@ resource "aws_backup_plan" "this" {
   }
 }
 
+data "aws_instances" "openvpn_instance" {
+  filter {
+    name   = "tag:Name"
+    values = [var.stack_name]  
+  }
+}
+
 resource "aws_backup_selection" "this" {
-  name          = "${var.stack_name}-backup-selection"
-  iam_role_arn  = aws_iam_role.backup.arn
-  plan_id       = aws_backup_plan.this.id
+  name         = "${var.stack_name}-backup-selection"
+  iam_role_arn = aws_iam_role.backup.arn
+  plan_id      = aws_backup_plan.this.id
 
-  resources = [aws_autoscaling_group.this.id]
+  resources    = data.aws_instances.openvpn_instance.arns  
 
-  depends_on = [ aws_backup_plan.this, aws_iam_role.backup ]
+  depends_on   = [aws_backup_plan.this, aws_iam_role.backup]
 }
 
 resource "aws_iam_role" "backup" {
