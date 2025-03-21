@@ -18,8 +18,8 @@ resource "aws_backup_plan" "this" {
 
 resource "aws_backup_selection" "this" {
   name          = "${var.stack_name}-backup-selection"
-  iam_role_arn = aws_iam_role.backup.arn
-  backup_plan_id = aws_backup_plan.this.id
+  iam_role_arn  = aws_iam_role.backup.arn
+  plan_id       = aws_backup_plan.this.id
 
   resources = [aws_autoscaling_group.this.id]
 
@@ -48,5 +48,5 @@ EOF
 resource "aws_iam_role_policy_attachment" "backup" {
   role       = aws_iam_role.backup.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
-  depends_on = [ aws_iam_role.backup.arn ]
+  depends_on = [ aws_iam_role.backup ]
 }
