@@ -44,3 +44,11 @@ variable "volume_path" {
 variable "vpc_id" {
     type = string
 }
+
+variable "schedule" {
+    default = "cron(0 5 * * ? *)" 
+}
+
+variable "delete_after" {
+    default = 7 
+}
