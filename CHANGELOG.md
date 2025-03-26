@@ -1,3 +1,7 @@
+## [2.3.0] - 2025-03-26
+
+- Add EBS volume backup.
+
 ## [2.2.0] - 2025-03-11
 
 - The open vpn version was updated to 2.6.12 and the Alpine version of the container was updated to 3.21.3.
