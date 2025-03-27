@@ -1,10 +1,10 @@
 resource "aws_backup_vault" "this" {
-  name = "${var.stack_name}-backup-vault"
+  name = "${var.stack_name}"
   tags = local.tags
 }
 
 resource "aws_backup_plan" "this" {
-  name = "${var.stack_name}-backup-plan"
+  name = "${var.stack_name}"
 
   rule {
     rule_name         = "daily-backup"
@@ -24,7 +24,7 @@ data "aws_instances" "openvpn_instance" {
 }
 
 resource "aws_backup_selection" "this" {
-  name         = "${var.stack_name}-backup-selection"
+  name         = "${var.stack_name}"
   iam_role_arn = aws_iam_role.backup.arn
   plan_id      = aws_backup_plan.this.id
 
@@ -41,7 +41,7 @@ resource "aws_backup_selection" "this" {
 }
 
 resource "aws_iam_role" "backup" {
-  name = "${var.stack_name}-backup-role"
+  name = "${var.stack_name}"
 
   assume_role_policy = <<-EOF
 {

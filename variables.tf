@@ -45,10 +45,11 @@ variable "vpc_id" {
     type = string
 }
 
-variable "schedule" {
+variable "backup_schedule" {
     default = "cron(0 5 * * ? *)" 
 }
 
-variable "delete_after" {
-    default = 7 
+variable "backup_retention" {
+    description = "The unit is days"
+    default = 7
 }
