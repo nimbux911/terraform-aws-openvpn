@@ -1,6 +1,7 @@
 ## [2.3.0] - 2025-03-26
 
 - Add EBS volume backup.
+- Add EBS volume restore.
 
 ## [2.2.0] - 2025-03-11
 

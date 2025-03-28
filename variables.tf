@@ -53,3 +53,8 @@ variable "backup_retention" {
     description = "The unit is days"
     default = 7
 }
+
+variable "ebs_snapshot_id" {
+  description = "EBS snapshot id to restore"
+  default     = null
+}
