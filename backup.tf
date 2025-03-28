@@ -9,9 +9,9 @@ resource "aws_backup_plan" "this" {
   rule {
     rule_name         = "daily-backup"
     target_vault_name = aws_backup_vault.this.name
-    schedule          = var.schedule 
+    schedule          = var.backup_schedule 
     lifecycle {
-      delete_after    = var.delete_after 
+      delete_after    = var.backup_retention 
     }
   }
 }
