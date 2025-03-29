@@ -41,7 +41,7 @@ resource "aws_backup_selection" "this" {
 }
 
 resource "aws_iam_role" "backup" {
-  name = "${var.stack_name}-backup-role"
+  name = "${var.stack_name}-backup"
 
   assume_role_policy = <<-EOF
 {
