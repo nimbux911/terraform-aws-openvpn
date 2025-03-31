@@ -39,7 +39,7 @@ module "openvpn" {
 | volume\_path | Path to mount the data fs. | `string` | `"/openvpn/"` | no |
 | vpc\_id | VPC id where the OpenVPN will be hosted. | `string` | ` ` | yes |
 | backup_schedule | A backup schedule defines the frequency and timing of data backups. | `string` | ` ` | no |
-| backup_retention | Backup retention refers to the rules that determine how long backups are stored before being deleted. The unit is days | `string` | ` ` | no |
+| backup_retention | Backup retention refers to the rules that determine how long backups are stored before being deleted. The unit is days | `numeric` | ` ` | no |
 | ebs_snapshot_id | The EBS snapshot ID | `string` | ` ` | no |
 
 ## Outputs

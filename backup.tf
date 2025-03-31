@@ -1,10 +1,10 @@
 resource "aws_backup_vault" "this" {
-  name = "${var.stack_name}"
+  name = var.stack_name
   tags = local.tags
 }
 
 resource "aws_backup_plan" "this" {
-  name = "${var.stack_name}"
+  name = var.stack_name
 
   rule {
     rule_name         = "daily-backup"
@@ -24,7 +24,7 @@ data "aws_instances" "openvpn_instance" {
 }
 
 resource "aws_backup_selection" "this" {
-  name         = "${var.stack_name}"
+  name         = var.stack_name
   iam_role_arn = aws_iam_role.backup.arn
   plan_id      = aws_backup_plan.this.id
 

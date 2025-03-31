@@ -1,4 +1,4 @@
-## [2.3.0] - 2025-03-26
+## [2.3.0] -  2025-03-31
 
 - Add EBS volume backup.
 - Add EBS volume restore.
