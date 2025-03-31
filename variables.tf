@@ -44,3 +44,17 @@ variable "volume_path" {
 variable "vpc_id" {
     type = string
 }
+
+variable "backup_schedule" {
+    default = "cron(0 5 * * ? *)" 
+}
+
+variable "backup_retention" {
+    description = "The unit is days"
+    default = 7
+}
+
+variable "ebs_snapshot_id" {
+  description = "EBS snapshot id to restore"
+  default     = null
+}

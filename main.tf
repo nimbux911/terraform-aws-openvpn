@@ -76,7 +76,7 @@ resource "aws_launch_template" "this" {
 
   tag_specifications {
     resource_type = "volume"
-    tags          = local.tags
+    tags              = local.tags
   }
 
   tag_specifications {
@@ -91,7 +91,8 @@ resource "aws_ebs_volume" "this" {
   encrypted         = true
   type              = "gp2"
   size              = 30
-  tags              = local.tags
+  tags              = merge(local.tags, { backup_enabled = "true" })
+  snapshot_id       = var.ebs_snapshot_id
 }
 
 resource "aws_key_pair" "this" {
