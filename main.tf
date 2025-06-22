@@ -102,7 +102,7 @@ resource "aws_key_pair" "this" {
 }
 
 resource "aws_eip" "this" {
-  vpc  = true
+  #vpc  = true
   tags = local.tags
 }
 
