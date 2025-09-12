@@ -4,7 +4,7 @@ services:
      - NET_ADMIN
     devices:
       - /dev/net/tun:/dev/net/tun
-    image: public.ecr.aws/n5x5g3h7/nimbux911/dockovpn:2.6.12-config.0.1.0
+    image: public.ecr.aws/w6z0u0b2/nimbux911/dockovpn:2.6.8-config.0.1.0
     container_name: openvpn
     ports:
      - "1194:1194/udp"
