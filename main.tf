@@ -1,14 +1,29 @@
 resource "aws_autoscaling_group" "this" {
-  desired_capacity     = 1
-  max_size             = 1
-  min_size             = 1
-  name                 = var.stack_name
-  vpc_zone_identifier  = [var.subnet_id]
-  health_check_type    = "EC2"
+  desired_capacity    = 1
+  max_size            = 1
+  min_size            = 1
+  name                = var.stack_name
+  vpc_zone_identifier = [var.subnet_id]
+  health_check_type   = "EC2"
+
+  lifecycle {
+    precondition {
+      condition     = alltrue([for user in values(var.vpn_users) : contains(keys(var.vpn_access_groups), user.group)])
+      error_message = "Each vpn_users group must exist in vpn_access_groups."
+    }
+  }
 
   launch_template {
     id      = aws_launch_template.this.id
     version = "$Latest"
+  }
+
+  instance_refresh {
+    strategy = "Rolling"
+
+    preferences {
+      min_healthy_percentage = 0
+    }
   }
 
   dynamic "tag" {
@@ -35,7 +50,7 @@ resource "aws_launch_template" "this" {
     device_name = var.ubuntu_ami_id != "" ? "/dev/sda1" : data.aws_ami.ubuntu[0].root_device_name
     ebs {
       volume_size           = 8
-      volume_type           = "gp2"
+      volume_type           = "gp3"
       delete_on_termination = true
     }
   }
@@ -53,20 +68,22 @@ resource "aws_launch_template" "this" {
     security_groups             = [aws_security_group.this.id]
   }
 
-  user_data = base64encode(templatefile("${path.module}/resources/templates/user_data.tpl", 
-      {
-        aws_region          = data.aws_region.current.name,
-        eip_address         = aws_eip.this.public_ip,
-        eip_allocation_id   = aws_eip.this.id,
-        volume_path         = var.volume_path,
-        volume_device_name  = "/dev/sdf"
-        volume_id           = aws_ebs_volume.this.id
-        docker_cidr         = var.docker_cidr
-        docker_compose      = local.docker_compose
-        create_client       = local.create_client
-        revoke_client       = local.revoke_client
-        routes              = [ for peered_network in var.peered_networks : "${element(split("/", peered_network), 0)} ${cidrnetmask(peered_network)}" ]
-      }
+  user_data = base64encode(templatefile("${path.module}/resources/templates/user_data.tpl",
+    {
+      aws_region         = data.aws_region.current.name,
+      eip_address        = aws_eip.this.public_ip,
+      eip_allocation_id  = aws_eip.this.id,
+      vpn_endpoint       = local.vpn_endpoint,
+      volume_path        = var.volume_path,
+      volume_device_name = "/dev/sdf"
+      volume_id          = aws_ebs_volume.this.id
+      docker_cidr        = var.docker_cidr
+      openvpn_image      = var.openvpn_image
+      docker_compose     = local.docker_compose
+      create_client      = local.create_client
+      revoke_client      = local.revoke_client
+      routes             = [for peered_network in var.peered_networks : "${element(split("/", peered_network), 0)} ${cidrnetmask(peered_network)}"]
+    }
   ))
 
   tag_specifications {
@@ -76,7 +93,7 @@ resource "aws_launch_template" "this" {
 
   tag_specifications {
     resource_type = "volume"
-    tags              = local.tags
+    tags          = local.tags
   }
 
   tag_specifications {
@@ -89,16 +106,16 @@ resource "aws_launch_template" "this" {
 resource "aws_ebs_volume" "this" {
   availability_zone = data.aws_subnet.selected.availability_zone
   encrypted         = true
-  type              = "gp2"
+  type              = "gp3"
   size              = 30
   tags              = merge(local.tags, { backup_enabled = "true" })
   snapshot_id       = var.ebs_snapshot_id
 }
 
 resource "aws_key_pair" "this" {
-  key_name    = var.stack_name
-  public_key  = base64decode(aws_ssm_parameter.public_key.value)
-  tags        = local.tags
+  key_name   = var.stack_name
+  public_key = base64decode(aws_ssm_parameter.public_key.value)
+  tags       = local.tags
 }
 
 resource "aws_eip" "this" {
@@ -112,20 +129,20 @@ resource "aws_security_group" "this" {
   tags        = local.tags
 
   ingress {
-    description      = "OpenVPN"
-    from_port        = 1194
-    to_port          = 1194
-    protocol         = "udp"
-    cidr_blocks      = ["0.0.0.0/0"]
+    description = "OpenVPN"
+    from_port   = 1194
+    to_port     = 1194
+    protocol    = "udp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
-    description      = "SSH"
-    from_port        = 22
-    to_port          = 22
-    protocol         = "tcp"
-    self             = true
-    cidr_blocks      = var.ssh_ingress_cidrs
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    self        = true
+    cidr_blocks = var.ssh_ingress_cidrs
   }
 
   egress {
@@ -156,7 +173,7 @@ resource "aws_ssm_parameter" "private_key" {
   tier  = "Advanced"
   value = base64encode(tls_private_key.this.private_key_pem)
   tags  = local.tags
-}  
+}
 
 resource "aws_iam_instance_profile" "this" {
   name = var.stack_name
@@ -203,5 +220,39 @@ resource "aws_iam_role_policy" "this" {
   EOF
 }
 
+resource "aws_iam_role_policy_attachment" "ssm_managed_instance_core" {
+  role       = aws_iam_role.this.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
 
+resource "aws_ssm_document" "access_control" {
+  count           = var.enable_vpn_access_control ? 1 : 0
+  name            = "${var.stack_name}-openvpn-access-control"
+  document_type   = "Command"
+  document_format = "YAML"
+  tags            = local.tags
 
+  content = yamlencode({
+    schemaVersion = "2.2"
+    description   = "Apply OpenVPN access control rules"
+    mainSteps = [
+      {
+        action = "aws:runShellScript"
+        name   = "applyAccessControl"
+        inputs = {
+          runCommand = [local.access_control]
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_ssm_association" "access_control" {
+  count = var.enable_vpn_access_control ? 1 : 0
+  name  = aws_ssm_document.access_control[0].name
+
+  targets {
+    key    = "tag:Name"
+    values = [var.stack_name]
+  }
+}

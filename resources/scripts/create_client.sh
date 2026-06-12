@@ -1,8 +1,11 @@
 
+VPN_ENDPOINT="${vpn_endpoint}"
+
 if [ $(whoami) == "ubuntu" ] && [ -n "$1" ] ; then
     mkdir -p ./keys
 	docker compose run --rm openvpn easyrsa build-client-full $1 nopass
 	docker compose run --rm openvpn ovpn_getclient $1 > ./keys/$1.ovpn
+	sed -i -E "s#^remote .+ 1194 udp[[:space:]]*\$#remote $VPN_ENDPOINT 1194 udp#" ./keys/$1.ovpn
 elif [ $(whoami) != "ubuntu" ]; then
 	echo "This script must be run as ubuntu."
 	exit 1

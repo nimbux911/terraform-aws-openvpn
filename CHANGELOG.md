@@ -1,3 +1,11 @@
+## [2.4.0] - 2026-06-12
+
+- Update the default Ubuntu AMI lookup to Canonical Ubuntu 26.04 LTS images.
+- Add DNS record management for Route53 and Cloudflare through `dns_name` and related inputs.
+- Improve EC2 bootstrap reliability with IMDSv2 metadata lookups, EBS NVMe serial-based device detection, explicit Docker image pulls, and longer PKI initialization timeout.
+- Add SSM-managed OpenVPN access control with fixed client IPs, generated profiles, user revocation, CCD files, and container-level firewall rules enforced before OpenVPN NAT.
+- Add ASG instance refresh so launch template changes replace the singleton OpenVPN instance.
+
 ## [2.3.0] -  2025-03-31
 
 - Add EBS volume backup.
