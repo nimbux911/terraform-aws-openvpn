@@ -86,6 +86,8 @@ OpenVPN does not push a default route, so client internet traffic continues usin
 
 When access control is enabled, the SSM document creates missing client certificates and `.ovpn` profiles for users in `vpn_users`, writes CCD fixed-IP files, revokes removed users, and applies firewall rules inside the OpenVPN container before NAT. `create_client.sh` is still available for manual client creation when access control is disabled.
 
+For a new instance, run the first `terraform apply` with `vpn_users = {}` so the EC2 bootstrap can finish creating the OpenVPN configuration and starting the container. After cloud-init completes, add users to `vpn_users` and run a second `terraform apply` to let the SSM association generate profiles and apply access-control rules. This avoids the SSM association running before OpenVPN files are ready during first boot.
+
 ## Inputs
 
 | Name | Description | Type | Default | Required |
