@@ -9,9 +9,9 @@ resource "aws_backup_plan" "this" {
   rule {
     rule_name         = "daily-backup"
     target_vault_name = aws_backup_vault.this.name
-    schedule          = var.backup_schedule 
+    schedule          = var.backup_schedule
     lifecycle {
-      delete_after    = var.backup_retention 
+      delete_after = var.backup_retention
     }
   }
 }
@@ -19,7 +19,7 @@ resource "aws_backup_plan" "this" {
 data "aws_instances" "openvpn_instance" {
   filter {
     name   = "tag:Name"
-    values = [var.stack_name]  
+    values = [var.stack_name]
   }
 }
 
@@ -28,7 +28,7 @@ resource "aws_backup_selection" "this" {
   iam_role_arn = aws_iam_role.backup.arn
   plan_id      = aws_backup_plan.this.id
 
-  resources = ["*"]  
+  resources = ["*"]
 
   condition {
     string_equals {
@@ -37,7 +37,7 @@ resource "aws_backup_selection" "this" {
     }
   }
 
-  depends_on   = [aws_backup_plan.this, aws_iam_role.backup]
+  depends_on = [aws_backup_plan.this, aws_iam_role.backup]
 }
 
 resource "aws_iam_role" "backup" {
@@ -62,5 +62,5 @@ EOF
 resource "aws_iam_role_policy_attachment" "backup" {
   role       = aws_iam_role.backup.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSBackupServiceRolePolicyForBackup"
-  depends_on = [ aws_iam_role.backup ]
+  depends_on = [aws_iam_role.backup]
 }

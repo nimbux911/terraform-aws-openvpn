@@ -1,60 +1,134 @@
 variable "compose_cidr" {
-    type    = string
-    default = "192.168.127.0/24"
+  type    = string
+  default = "192.168.127.0/24"
 }
-variable "docker_cidr" { 
-    type    = string
-    default = "192.168.125.0/24"
+variable "docker_cidr" {
+  type    = string
+  default = "192.168.125.0/24"
+}
+variable "openvpn_image" {
+  description = "Docker image used to run OpenVPN."
+  type        = string
+  default     = "public.ecr.aws/w6z0u0b2/nimbux911/dockovpn:2.6.20-config.0.1.0"
 }
 variable "instance_type" {
-    type    = string
-    default = "t3a.micro"
+  type    = string
+  default = "t3a.micro"
 }
 variable "peered_networks" {
-    type    = list(string)
-    default = []
+  type    = list(string)
+  default = []
 }
 variable "ssh_ingress_cidrs" {
-    type    = list(string)
-    default = []
+  type    = list(string)
+  default = []
 }
 variable "ssm_parameters_path" {
-    type    = string
-    default = ""
+  type    = string
+  default = ""
 }
 variable "stack_name" {
-    type    = string
-    default = "openvpn"
+  type    = string
+  default = "openvpn"
 }
 variable "subnet_id" {
-    type = string
+  type = string
 }
 variable "tags" {
-    type    = map
-    default = {}
+  type    = map(any)
+  default = {}
 }
 variable "ubuntu_ami_id" {
-    type    = string
-    default = ""
+  type    = string
+  default = ""
 }
 variable "volume_path" {
-    type    = string
-    default = "/openvpn/"
+  type    = string
+  default = "/openvpn/"
 }
 variable "vpc_id" {
-    type = string
+  type = string
 }
 
 variable "backup_schedule" {
-    default = "cron(0 5 * * ? *)" 
+  default = "cron(0 5 * * ? *)"
 }
 
 variable "backup_retention" {
-    description = "The unit is days"
-    default = 7
+  description = "The unit is days"
+  default     = 7
 }
 
 variable "ebs_snapshot_id" {
   description = "EBS snapshot id to restore"
   default     = null
+}
+
+variable "dns_name" {
+  description = "Optional DNS name to point at the OpenVPN Elastic IP. No DNS record is created when empty."
+  type        = string
+  default     = ""
+}
+
+variable "dns_provider" {
+  description = "DNS provider used for dns_name. Valid values: route53, cloudflare."
+  type        = string
+  default     = "route53"
+
+  validation {
+    condition     = contains(["route53", "cloudflare"], var.dns_provider)
+    error_message = "dns_provider must be either route53 or cloudflare."
+  }
+}
+
+variable "dns_zone_name" {
+  description = "DNS zone name used to look up the hosted zone when dns_zone_id is empty."
+  type        = string
+  default     = ""
+}
+
+variable "dns_zone_id" {
+  description = "Optional DNS zone ID. Route53 hosted zone ID or Cloudflare zone ID, depending on dns_provider."
+  type        = string
+  default     = ""
+}
+
+variable "cloudflare_dns_proxied" {
+  description = "Whether Cloudflare should proxy the OpenVPN DNS record. OpenVPN should normally leave this false."
+  type        = bool
+  default     = false
+}
+
+variable "enable_vpn_access_control" {
+  description = "Enable per-user OpenVPN access control managed through SSM."
+  type        = bool
+  default     = false
+}
+
+variable "vpn_client_cidr" {
+  description = "CIDR used by OpenVPN clients when access control is enabled."
+  type        = string
+  default     = "192.168.255.0/24"
+}
+
+variable "vpn_access_groups" {
+  description = "Access groups mapped to destination CIDRs allowed through the VPN."
+  type = map(object({
+    allowed_cidrs = list(string)
+  }))
+  default = {}
+}
+
+variable "vpn_users" {
+  description = "OpenVPN users mapped to access groups and fixed VPN IPs. This is the source of truth; existing clients not listed here are revoked when access control is enabled."
+  type = map(object({
+    group = string
+    ip    = string
+  }))
+  default = {}
+
+  validation {
+    condition     = length(distinct([for user in values(var.vpn_users) : user.ip])) == length(var.vpn_users)
+    error_message = "Each vpn_users entry must use a unique fixed IP."
+  }
 }
