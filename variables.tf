@@ -105,6 +105,17 @@ variable "enable_vpn_access_control" {
   default     = false
 }
 
+variable "vpn_profile_management_mode" {
+  description = "authoritative manages revocation and firewall ACLs; additive only creates missing profiles and preserves existing certificates, CCD files, profiles, and firewall rules."
+  type        = string
+  default     = "authoritative"
+
+  validation {
+    condition     = contains(["authoritative", "additive"], var.vpn_profile_management_mode)
+    error_message = "vpn_profile_management_mode must be authoritative or additive."
+  }
+}
+
 variable "vpn_client_cidr" {
   description = "CIDR used by OpenVPN clients when access control is enabled."
   type        = string
@@ -120,15 +131,25 @@ variable "vpn_access_groups" {
 }
 
 variable "vpn_users" {
-  description = "OpenVPN users mapped to access groups and fixed VPN IPs. This is the source of truth; existing clients not listed here are revoked when access control is enabled."
+  description = "OpenVPN client common names mapped to groups and optional fixed IPs. Omit ip only in additive mode to preserve dynamic allocation. Authoritative mode revokes users absent from this map."
   type = map(object({
     group = string
-    ip    = string
+    ip    = optional(string)
   }))
   default = {}
 
   validation {
-    condition     = length(distinct([for user in values(var.vpn_users) : user.ip])) == length(var.vpn_users)
+    condition     = length(distinct(compact([for user in values(var.vpn_users) : user.ip]))) == length(compact([for user in values(var.vpn_users) : user.ip]))
     error_message = "Each vpn_users entry must use a unique fixed IP."
+  }
+
+  validation {
+    condition     = alltrue([for username in keys(var.vpn_users) : can(regex("^[a-zA-Z0-9][a-zA-Z0-9_.-]*$", username))])
+    error_message = "VPN client names may contain only letters, numbers, dots, underscores and hyphens, and must start with a letter or number."
+  }
+
+  validation {
+    condition     = alltrue([for user in values(var.vpn_users) : user.ip == null ? true : can(cidrnetmask("${user.ip}/32"))])
+    error_message = "Fixed VPN IPs must be valid IPv4 addresses."
   }
 }

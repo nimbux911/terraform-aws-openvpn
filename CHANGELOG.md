@@ -1,3 +1,13 @@
+## [2.5.0] - 2026-10-19
+
+- Add opt-in `vpn_profile_management_mode = "additive"` for SSM-managed adoption of existing clients and creation of dedicated fixed-IP service profiles, without VPN restart, user-data changes or firewall changes. The default remains `authoritative` for existing callers.
+- Preserve existing certificates, private keys, exported profiles and CCD files in additive mode. Clients omitted from `vpn_users` are not revoked or deleted; removal requires explicit revocation.
+- Make `vpn_users.ip` optional in additive mode to retain existing dynamic address allocation. Authoritative mode still requires fixed client IPs.
+- Validate the complete desired inventory before creating profiles: reject revoked or expired identities, changes to existing fixed addresses, and new fixed-IP conflicts with the dynamic pool, other CCDs or active sessions.
+- Serialize additive sync runs with a host-level lock and write new profiles atomically with restricted permissions, without printing their private keys to SSM output or storing them in Terraform state.
+- Explicitly select the SSM document version in its association so updated scripts are used on subsequent applies.
+- Require Terraform 1.3 or newer for optional object attributes and document additive migration and client-to-client connectivity using existing kernel forwarding.
+
 ## [2.4.0] - 2026-06-12
 
 - Update the default Ubuntu AMI lookup to Canonical Ubuntu 26.04 LTS images.
