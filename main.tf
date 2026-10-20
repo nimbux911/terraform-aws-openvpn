@@ -11,6 +11,11 @@ resource "aws_autoscaling_group" "this" {
       condition     = alltrue([for user in values(var.vpn_users) : contains(keys(var.vpn_access_groups), user.group)])
       error_message = "Each vpn_users group must exist in vpn_access_groups."
     }
+
+    precondition {
+      condition     = var.vpn_profile_management_mode == "additive" || alltrue([for user in values(var.vpn_users) : user.ip != null])
+      error_message = "Authoritative mode requires a fixed ip for every VPN user. Use additive mode to preserve dynamically allocated clients."
+    }
   }
 
   launch_template {
@@ -234,7 +239,7 @@ resource "aws_ssm_document" "access_control" {
 
   content = yamlencode({
     schemaVersion = "2.2"
-    description   = "Apply OpenVPN access control rules"
+    description   = var.vpn_profile_management_mode == "additive" ? "Add missing OpenVPN profiles without revocation, firewall changes or restart" : "Apply OpenVPN access control rules"
     mainSteps = [
       {
         action = "aws:runShellScript"
@@ -248,8 +253,9 @@ resource "aws_ssm_document" "access_control" {
 }
 
 resource "aws_ssm_association" "access_control" {
-  count = var.enable_vpn_access_control ? 1 : 0
-  name  = aws_ssm_document.access_control[0].name
+  count            = var.enable_vpn_access_control ? 1 : 0
+  name             = aws_ssm_document.access_control[0].name
+  document_version = aws_ssm_document.access_control[0].latest_version
 
   targets {
     key    = "tag:Name"

@@ -4,7 +4,7 @@ Terraform module which creates an OpenVPN EC2 instance in AWS.
 
 ![OpenVPN Version](https://img.shields.io/badge/OpenVPN-2.6.20-blue?style=for-the-badge)
 ![Alpine Version](https://img.shields.io/badge/Alpine-3.21.3-orange?style=for-the-badge)
-![Terraform Version](https://img.shields.io/badge/Terraform-%3E%3D%200.14.8-purple?style=for-the-badge)
+![Terraform Version](https://img.shields.io/badge/Terraform-%3E%3D%201.3-purple?style=for-the-badge)
 
 ## OpenVPN Service
 
@@ -46,7 +46,7 @@ OpenVPN client profiles use `dns_name` as the remote endpoint when it is set; ot
 
 ## Access Control
 
-The module can manage per-user access control through AWS Systems Manager. When enabled, `vpn_users` is the source of truth: users removed from this map are revoked with `ovpn_revokeclient`, their CCD file is deleted, and their firewall permissions are removed.
+The module can manage per-user access control through AWS Systems Manager. With `enable_vpn_access_control = true` and the default `vpn_profile_management_mode = "authoritative"`, `vpn_users` is the source of truth: users removed from this map are revoked with `ovpn_revokeclient`, their CCD file is deleted, and their firewall permissions are removed. **Do not use authoritative mode to adopt an incomplete inventory of an existing VPN.**
 
 ```hcl
 module "openvpn" {
@@ -88,6 +88,41 @@ When access control is enabled, the SSM document creates missing client certific
 
 For a new instance, run the first `terraform apply` with `vpn_users = {}` so the EC2 bootstrap can finish creating the OpenVPN configuration and starting the container. After cloud-init completes, add users to `vpn_users` and run a second `terraform apply` to let the SSM association generate profiles and apply access-control rules. This avoids the SSM association running before OpenVPN files are ready during first boot.
 
+### Additive adoption and client-to-client testing
+
+Set `enable_vpn_access_control = true` and `vpn_profile_management_mode = "additive"` to use a separate, non-destructive SSM script:
+
+- Existing certificates, private keys, `.ovpn` files and CCDs are preserved. Unknown clients are never revoked or deleted, even if omitted from `vpn_users`.
+- Omit `ip` when adopting a dynamically addressed client. Existing fixed-IP clients must retain their current address; mismatches abort the sync rather than changing it.
+- Revoked/expired identities are not recreated. Use the exact, case-sensitive common name of each valid certificate, not the filename of a stale profile.
+- The full desired inventory is checked before issuing certificates. New fixed addresses must be outside the running server's dynamic pool, unreserved in other CCDs and unused in its status file. For `server 192.168.255.0 255.255.255.0` with `topology subnet` and no explicit pool, the implicit pool is `.2` through `.253`; `.254` is outside it.
+- No firewall commands, server configuration changes, container lifecycle operations or VPN restart are performed. Existing ACLs remain untouched; `group` does not enforce new permissions in this mode.
+- Missing profiles are written atomically with mode `0600`; their contents are never printed to SSM output or stored in Terraform state. A host-level lock prevents overlapping additive runs. Requires Bash, `flock`, Docker, and the image's existing EasyRSA/OpenSSL utilities.
+- The association pins the SSM document version, so an updated document is selected on the next apply.
+
+```hcl
+enable_vpn_access_control   = true
+vpn_profile_management_mode = "additive"
+vpn_access_groups = { existing = { allowed_cidrs = [] } }
+vpn_users = {
+  existing_dynamic_client = { group = "existing" }
+  existing_fixed_client   = { group = "existing", ip = "192.168.255.11" }
+  test_mac                = { group = "existing", ip = "192.168.255.254" }
+}
+```
+
+This adopts certificate identities into configuration; certificates are not separate Terraform resources and no `terraform import` is needed. Taking a profile out of an additive map **does not revoke it**. Explicitly revoke temporary certificates when the test is over, verify CRL enforcement, and remove their profile/CCD separately. Switching back to authoritative mode requires a complete inventory with fixed IPs and a separate review of the firewall/revocation impact.
+
+With server-side kernel forwarding already enabled, clients may communicate through `tun0` without OpenVPN's `client-to-client` directive. Additive mode does not enable forwarding or guarantee isolation: verify actual reachability from two clients. It also does not repair missing existing ACLs.
+
+For this feature alone, a reviewed Terraform plan must not change the launch template, ASG, instance, user-data, image or networking. Changing the module source to a local checkout does not itself require replacement, but unrelated drift in a full plan can still be disruptive.
+
+Offline script regression tests (all Docker calls mocked; no AWS requests):
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
 ## Inputs
 
 | Name | Description | Type | Default | Required |
@@ -114,9 +149,10 @@ For a new instance, run the first `terraform apply` with `vpn_users = {}` so the
 | backup_retention | Backup retention refers to the rules that determine how long backups are stored before being deleted. The unit is days | `number` | ` ` | no |
 | ebs_snapshot_id | The EBS snapshot ID | `string` | ` ` | no |
 | enable\_vpn\_access\_control | Enable per-user OpenVPN access control managed through SSM. | `bool` | `false` | no |
+| vpn\_profile\_management\_mode | `authoritative` manages revocation/ACLs; `additive` preserves existing profiles and firewall rules. | `string` | `"authoritative"` | no |
 | vpn\_client\_cidr | CIDR used by OpenVPN clients when access control is enabled. | `string` | `"192.168.255.0/24"` | no |
 | vpn\_access\_groups | Access groups mapped to destination CIDRs allowed through the VPN. | `map(object({ allowed_cidrs = list(string) }))` | `{}` | no |
-| vpn\_users | OpenVPN users mapped to access groups and fixed VPN IPs. Removed users are revoked when access control is enabled. | `map(object({ group = string, ip = string }))` | `{}` | no |
+| vpn\_users | Case-sensitive client names mapped to groups and optional fixed IPs. Omit `ip` only in additive mode. | `map(object({ group = string, ip = optional(string) }))` | `{}` | no |
 
 ## Outputs
 

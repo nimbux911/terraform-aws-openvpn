@@ -13,7 +13,12 @@ locals {
     vpn_endpoint = local.vpn_endpoint
   })
   revoke_client = file("${path.module}/resources/scripts/revoke_client.sh")
-  access_control = templatefile("${path.module}/resources/scripts/apply_access_control.sh.tpl", {
+  access_control = var.vpn_profile_management_mode == "additive" ? templatefile("${path.module}/resources/scripts/sync_profiles_additive.sh.tpl", {
+    volume_path     = var.volume_path
+    vpn_endpoint    = local.vpn_endpoint
+    vpn_client_cidr = var.vpn_client_cidr
+    vpn_users       = var.vpn_users
+    }) : templatefile("${path.module}/resources/scripts/apply_access_control.sh.tpl", {
     volume_path       = var.volume_path
     vpn_endpoint      = local.vpn_endpoint
     vpn_client_cidr   = var.vpn_client_cidr
