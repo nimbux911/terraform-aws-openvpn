@@ -26,4 +26,20 @@ locals {
     vpn_access_groups = var.vpn_access_groups
     vpn_users         = var.vpn_users
   })
+
+  runtime_pool       = try(var.vpn_runtime_config.dynamic_pool, null)
+  runtime_pool_start = try(sum([for i, octet in split(".", local.runtime_pool.start) : tonumber(octet) * pow(256, 3 - i)]), null)
+  runtime_pool_end   = try(sum([for i, octet in split(".", local.runtime_pool.end) : tonumber(octet) * pow(256, 3 - i)]), null)
+  runtime_network    = try(sum([for i, octet in split(".", cidrhost(var.vpn_client_cidr, 0)) : tonumber(octet) * pow(256, 3 - i)]), null)
+  runtime_broadcast  = try(sum([for i, octet in split(".", cidrhost(var.vpn_client_cidr, -1)) : tonumber(octet) * pow(256, 3 - i)]), null)
+
+  runtime_config = var.vpn_runtime_config == null ? "" : templatefile("${path.module}/resources/scripts/apply_runtime_config.sh.tpl", {
+    runtime_script = file("${path.module}/resources/scripts/apply_runtime_config.py")
+    request = {
+      volume_path     = var.volume_path
+      vpn_client_cidr = var.vpn_client_cidr
+      config          = var.vpn_runtime_config
+      vpn_users       = var.vpn_users
+    }
+  })
 }

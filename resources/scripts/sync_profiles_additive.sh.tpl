@@ -46,6 +46,11 @@ if [ -n "$EXPLICIT_POOL_START" ]; then
   POOL_START=$(ipv4_number "$EXPLICIT_POOL_START")
   POOL_END=$(ipv4_number "$EXPLICIT_POOL_END")
 fi
+# nopool disables only the implicit pool; an explicit ifconfig-pool is still active.
+POOL_ENABLED=1
+if [ "$SERVER_OPTION" = nopool ] && [ -z "$EXPLICIT_POOL_START" ]; then
+  POOL_ENABLED=0
+fi
 STATUS_PATH=$(awk '$1 == "status" {print $2}' "$CONF_DIR/openvpn.conf")
 test -n "$STATUS_PATH" || fail "A client status file is required for collision checks."
 CLIENT_STATUS=$(docker exec openvpn cat "$STATUS_PATH")
@@ -79,7 +84,7 @@ while IFS=$'\t' read -r username ip; do
     fi
   done
   if [ ! -f "$CERT" ]; then
-    if [ "$SERVER_OPTION" != nopool ] && (( IP_NUMBER >= POOL_START && IP_NUMBER <= POOL_END )); then
+    if [ "$POOL_ENABLED" = 1 ] && (( IP_NUMBER >= POOL_START && IP_NUMBER <= POOL_END )); then
       fail "$ip overlaps the dynamic pool; choose an address outside it without changing the running server."
     fi
     if awk -F, -v ip="$ip" '$1 == ip || ($1 == "CLIENT_LIST" && $4 == ip) || ($1 == "ROUTING_TABLE" && $2 == ip) {found=1} END {exit !found}' <<< "$CLIENT_STATUS"; then

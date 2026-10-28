@@ -1,3 +1,11 @@
+## [2.6.0] - 2026-10-28
+
+- Add optional `vpn_runtime_config` to manage the dynamic IP pool and UDP receive buffer through SSM, without changing user-data or replacing the instance. Defaults to `null` for existing callers.
+- Validate pool/CCD conflicts and container compatibility, back up changed configuration, restart only the OpenVPN container, and attempt rollback if startup fails. Matching settings do not trigger a restart; certificates, keys, profiles and CCDs are preserved.
+- Reject runtime changes with authoritative ACL management or unsupported custom firewall/NAT rules to avoid losing policy on restart.
+- Fix additive profile validation for explicit dynamic pools when `server` uses `nopool`.
+- Add offline safety regression tests for configuration changes, profile preservation, idempotency and recovery.
+
 ## [2.5.0] - 2026-10-19
 
 - Add opt-in `vpn_profile_management_mode = "additive"` for SSM-managed adoption of existing clients and creation of dedicated fixed-IP service profiles, without VPN restart, user-data changes or firewall changes. The default remains `authoritative` for existing callers.
