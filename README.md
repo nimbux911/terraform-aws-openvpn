@@ -80,7 +80,7 @@ module "openvpn" {
 }
 ```
 
-Access control changes are applied by an SSM association after `terraform apply`; the instance is not restarted. Existing connected users may need to reconnect only when their fixed VPN IP changes.
+SSM applies profile/access changes without restarting OpenVPN. Clients need to reconnect when their fixed IP changes. Optional runtime configuration below is a separate restart path.
 
 OpenVPN does not push a default route, so client internet traffic continues using the client's local gateway. ACLs only affect traffic routed through the VPN to `peered_networks`.
 
@@ -96,7 +96,7 @@ Set `enable_vpn_access_control = true` and `vpn_profile_management_mode = "addit
 - Omit `ip` when adopting a dynamically addressed client. Existing fixed-IP clients must retain their current address; mismatches abort the sync rather than changing it.
 - Revoked/expired identities are not recreated. Use the exact, case-sensitive common name of each valid certificate, not the filename of a stale profile.
 - The full desired inventory is checked before issuing certificates. New fixed addresses must be outside the running server's dynamic pool, unreserved in other CCDs and unused in its status file. For `server 192.168.255.0 255.255.255.0` with `topology subnet` and no explicit pool, the implicit pool is `.2` through `.253`; `.254` is outside it.
-- No firewall commands, server configuration changes, container lifecycle operations or VPN restart are performed. Existing ACLs remain untouched; `group` does not enforce new permissions in this mode.
+- The additive script does not change firewall/server settings or restart OpenVPN. `group` is not enforced in this mode; optional runtime configuration is separate.
 - Missing profiles are written atomically with mode `0600`; their contents are never printed to SSM output or stored in Terraform state. A host-level lock prevents overlapping additive runs. Requires Bash, `flock`, Docker, and the image's existing EasyRSA/OpenSSL utilities.
 - The association pins the SSM document version, so an updated document is selected on the next apply.
 
@@ -117,10 +117,52 @@ With server-side kernel forwarding already enabled, clients may communicate thro
 
 For this feature alone, a reviewed Terraform plan must not change the launch template, ASG, instance, user-data, image or networking. Changing the module source to a local checkout does not itself require replacement, but unrelated drift in a full plan can still be disruptive.
 
-Offline script regression tests (all Docker calls mocked; no AWS requests):
+## Optional runtime configuration
+
+`vpn_runtime_config` defaults to `null` (disabled). Set either or both fields to
+manage server settings through SSM, without changing user-data or replacing EC2:
+
+```hcl
+vpn_profile_management_mode = "additive"
+vpn_runtime_config = {
+  dynamic_pool = {
+    start = "192.168.255.101"
+    end   = "192.168.255.200"
+  }
+  receive_buffer_bytes = 1048576
+}
+```
+
+- The pool must be inside `vpn_client_cidr`, excluding network/server/broadcast
+  addresses and all fixed IPs. SSM checks every existing CCD, including manual ones.
+- Requires additive profile mode or `enable_vpn_access_control = false`. The runtime
+  step runs before profile sync and stops the document on failure.
+- Matching settings are a no-op. Changes are backed up under
+  `${volume_path}/conf/runtime-config-backups/`, applied atomically, and followed by
+  a container restart and startup check. On failure, the script attempts to restore
+  and restart the original configuration; failed recovery needs manual intervention.
+- Certificates, keys, profiles and CCDs are preserved. **Restarting interrupts all
+  active VPN connections**, dynamic clients may change IP, and client reconnection
+  is not guaranteed. Use a maintenance window, retain SSM access and check execution
+  status after applying. No new client profiles need to be distributed.
+
+Requires Python 3, SSM Agent >= 3.0.502 and the module's standard Docker IPv4
+UDP/1194 setup (`ovpn_run`, directory bind mount, `tun0`, `topology subnet`). Custom
+startup, includes/plugins and firewall/NAT rules are rejected for manual review.
+The buffer must fit `net.core.rmem_max`; sysctls are not changed. Validation covers
+managed settings, not a full OpenVPN dry-run.
+
+**Returning to `null` stops management; it does not undo applied settings.** Omitted
+fields are left unchanged. Pool ranges organize addresses, not traffic permissions.
+
+## Tests
+
+Offline regression tests use temporary files and mocked Docker/providers only;
+they do not access AWS or restart a VPN. Terraform plan tests require >= 1.7:
 
 ```bash
 python3 -m unittest discover -s tests -v
+terraform test
 ```
 
 ## Inputs
@@ -151,6 +193,7 @@ python3 -m unittest discover -s tests -v
 | enable\_vpn\_access\_control | Enable per-user OpenVPN access control managed through SSM. | `bool` | `false` | no |
 | vpn\_profile\_management\_mode | `authoritative` manages revocation/ACLs; `additive` preserves existing profiles and firewall rules. | `string` | `"authoritative"` | no |
 | vpn\_client\_cidr | CIDR used by OpenVPN clients when access control is enabled. | `string` | `"192.168.255.0/24"` | no |
+| vpn\_runtime\_config | Optional `dynamic_pool = { start, end }` and/or `receive_buffer_bytes` via SSM; changes restart OpenVPN. | `object` | `null` | no |
 | vpn\_access\_groups | Access groups mapped to destination CIDRs allowed through the VPN. | `map(object({ allowed_cidrs = list(string) }))` | `{}` | no |
 | vpn\_users | Case-sensitive client names mapped to groups and optional fixed IPs. Omit `ip` only in additive mode. | `map(object({ group = string, ip = optional(string) }))` | `{}` | no |
 

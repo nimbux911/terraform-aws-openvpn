@@ -122,6 +122,40 @@ variable "vpn_client_cidr" {
   default     = "192.168.255.0/24"
 }
 
+variable "vpn_runtime_config" {
+  description = "Opt-in SSM server configuration. Null preserves existing behavior. A changed pool or receive buffer restarts the OpenVPN container and disconnects clients. Requires additive profile mode or disabled profile management."
+  type = object({
+    dynamic_pool = optional(object({
+      start = string
+      end   = string
+    }))
+    receive_buffer_bytes = optional(number)
+  })
+  default = null
+
+  validation {
+    condition     = var.vpn_runtime_config == null ? true : (var.vpn_runtime_config.dynamic_pool != null || var.vpn_runtime_config.receive_buffer_bytes != null)
+    error_message = "vpn_runtime_config must configure a dynamic_pool and/or receive_buffer_bytes, or be null."
+  }
+
+  validation {
+    condition = try(var.vpn_runtime_config.dynamic_pool, null) == null ? true : alltrue([
+      can(cidrnetmask("${var.vpn_runtime_config.dynamic_pool.start}/32")),
+      can(cidrnetmask("${var.vpn_runtime_config.dynamic_pool.end}/32")),
+    ])
+    error_message = "The dynamic pool endpoints must be IPv4 addresses."
+  }
+
+  validation {
+    condition = try(var.vpn_runtime_config.receive_buffer_bytes, null) == null ? true : try(
+      var.vpn_runtime_config.receive_buffer_bytes >= 1 &&
+      var.vpn_runtime_config.receive_buffer_bytes <= 2147483647 &&
+      floor(var.vpn_runtime_config.receive_buffer_bytes) == var.vpn_runtime_config.receive_buffer_bytes,
+    false)
+    error_message = "receive_buffer_bytes must be a positive integer no larger than 2147483647."
+  }
+}
+
 variable "vpn_access_groups" {
   description = "Access groups mapped to destination CIDRs allowed through the VPN."
   type = map(object({

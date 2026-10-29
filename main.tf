@@ -231,29 +231,64 @@ resource "aws_iam_role_policy_attachment" "ssm_managed_instance_core" {
 }
 
 resource "aws_ssm_document" "access_control" {
-  count           = var.enable_vpn_access_control ? 1 : 0
+  count           = var.enable_vpn_access_control || var.vpn_runtime_config != null ? 1 : 0
   name            = "${var.stack_name}-openvpn-access-control"
   document_type   = "Command"
   document_format = "YAML"
   tags            = local.tags
 
+  lifecycle {
+    precondition {
+      condition     = var.vpn_runtime_config == null || !var.enable_vpn_access_control || var.vpn_profile_management_mode == "additive"
+      error_message = "Runtime configuration requires additive profile mode or disabled profile management; restarting must not erase authoritative container ACLs."
+    }
+    precondition {
+      condition = local.runtime_pool == null ? true : try(
+        local.runtime_pool_start > local.runtime_network + 1 &&
+        local.runtime_pool_start <= local.runtime_pool_end &&
+        local.runtime_pool_end < local.runtime_broadcast,
+      false)
+      error_message = "The dynamic pool must be ordered and inside vpn_client_cidr, excluding the network, server (.1) and broadcast addresses."
+    }
+    precondition {
+      condition = local.runtime_pool == null ? true : alltrue([
+        for user in values(var.vpn_users) : user.ip == null ? true : try(
+          sum([for i, octet in split(".", user.ip) : tonumber(octet) * pow(256, 3 - i)]) < local.runtime_pool_start ||
+          sum([for i, octet in split(".", user.ip) : tonumber(octet) * pow(256, 3 - i)]) > local.runtime_pool_end,
+        false)
+      ])
+      error_message = "Declared fixed client IPs must not overlap the dynamic pool. Existing CCD files are also checked by SSM before restart."
+    }
+  }
+
   content = yamlencode({
     schemaVersion = "2.2"
-    description   = var.vpn_profile_management_mode == "additive" ? "Add missing OpenVPN profiles without revocation, firewall changes or restart" : "Apply OpenVPN access control rules"
-    mainSteps = [
-      {
+    description = var.vpn_runtime_config != null ? "Apply optional OpenVPN server configuration with restart on change, then synchronize profiles" : (
+      var.vpn_profile_management_mode == "additive" ? "Add missing OpenVPN profiles without revocation, firewall changes or restart" : "Apply OpenVPN access control rules"
+    )
+    mainSteps = concat(
+      var.vpn_runtime_config == null ? [] : [{
+        action = "aws:runShellScript"
+        name   = "applyRuntimeConfiguration"
+        inputs = {
+          onFailure      = "exit"
+          timeoutSeconds = "420"
+          runCommand     = [local.runtime_config]
+        }
+      }],
+      var.enable_vpn_access_control ? [{
         action = "aws:runShellScript"
         name   = "applyAccessControl"
         inputs = {
           runCommand = [local.access_control]
         }
-      }
-    ]
+      }] : [],
+    )
   })
 }
 
 resource "aws_ssm_association" "access_control" {
-  count            = var.enable_vpn_access_control ? 1 : 0
+  count            = var.enable_vpn_access_control || var.vpn_runtime_config != null ? 1 : 0
   name             = aws_ssm_document.access_control[0].name
   document_version = aws_ssm_document.access_control[0].latest_version
 
